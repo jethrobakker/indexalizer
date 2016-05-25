@@ -18,13 +18,18 @@ DB.prototype.indexStats = function() {
     if(cName.indexOf("system") == -1) {
       var i = 1;
       var count = db.system.profile.count({ns:nsName});
-      print('scanning profile {ns:"'+nsName+'"} with '+count+" records... this could take a while.");
+      print('Scanning profile {ns:"'+nsName+'"} with '+count+" records... this could take a while.");
       db.system.profile.find({ns:nsName}).addOption(16).batchSize(10000).forEach(function(profileDoc) {
         if(profileDoc.query && !profileDoc.query["$explain"]) { 
           var qIdx = findQuery(profileDoc.query);
           if(qIdx == -1) {
             var size = queries.push({query:profileDoc.query, count:1, index:""});
-            var explain = db[cName].find(queries[size-1].query).explain();
+            //print('Query: ' + JSON.stringify(queries[size-1].query));
+            
+	    if(profileDoc.query["$orderby"]) 
+        return;
+ 
+	    var explain = db[cName].find(queries[size-1].query).explain();
             if(profileDoc.query && profileDoc.query["query"]) {
               queries[size-1].sort = profileDoc.query['orderby'];
               if(queries[size-1].sort) {
@@ -40,24 +45,27 @@ DB.prototype.indexStats = function() {
               queries[size-1].index = explain.cursor.split(" ")[1];
               //print("found index in use: " + queries[size-1].index); 
             } else {
-              print('warning, no index for query {ns:"'+nsName+'"}: ');
+              print('Warning, no index for query {ns:"'+nsName+'"}: ');
               printjson(profileDoc.query);
               print("... millis: " + queries[size-1].millis);
               print("... nscanned/n: " + queries[size-1].nscanned + "/" + queries[size-1].n);
               print("... scanAndOrder: " + queries[size-1].scanAndOrder);
+              print();
             }
+            
           } else {
             queries[qIdx].count++;
           }
         }
       });
+      print();
     }
   }
 
   for(cIdx in collections) {
     var cName = collections[cIdx];
     if(cName.indexOf("system") == -1) {
-      print("checking for unused indexes in: " + cName);
+      print("Checking for unused indexes in: " + cName);
       for(iIdx in db[cName].getIndexes()) {
         var iName = db[cName].getIndexes()[iIdx].name;
         if(iName.indexOf("system") == -1) {
@@ -70,11 +78,12 @@ DB.prototype.indexStats = function() {
             }
           }
           if(!found) {
-            print("this index is not being used: ");
+            print("This index is not being used: ");
             printjson(iName);
           }
         }
       }
+      print(); 
     }
   }
 }
